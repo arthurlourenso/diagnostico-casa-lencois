@@ -1,0 +1,1946 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagnóstico Financeiro — Casa Lençóis · Virtus Desenvolvimento</title>
+  <style>
+    :root {
+      /* Paleta Virtus (estrita) */
+      --c-primary: #0F3246;
+      --c-accent: #6CAEF5;
+      --c-block: #EEF4FB;
+      --c-text: #1F2D3A;
+      --c-muted: #5A6B7B;
+      --c-base: #FFFFFF;
+
+      /* Badges de severidade */
+      --b-alto: #C0392B;
+      --b-medio-alto: #E07B39;
+      --b-medio: #E0A526;
+      --b-medio-baixo: #7FA8C9;
+
+      /* Unidade proporcional 16:9 que cabe em qualquer tela sem cortar conteúdo */
+      --u: min(1vw, 1.777778vh);
+      --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--c-primary);
+      color: var(--c-text);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      user-select: text;
+    }
+
+    .deck {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Barra de progresso minimalista no topo */
+    .progress-track {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: rgba(108, 174, 245, 0.18);
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 8.333%;
+      background: var(--c-accent);
+      transition: width 360ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Cada slide ocupa 100% da tela, mantendo palco interno estrito 16:9 */
+    .slide {
+      position: absolute;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--c-base);
+      color: var(--c-text);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(calc(1.4 * var(--u)));
+      transition:
+        opacity 340ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 340ms cubic-bezier(0.22, 1, 0.36, 1),
+        visibility 340ms;
+      pointer-events: none;
+    }
+
+    .slide.is-prev {
+      transform: translateX(calc(-1.4 * var(--u)));
+    }
+
+    .slide.is-active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+      pointer-events: auto;
+      z-index: 2;
+    }
+
+    .slide--dark {
+      background: var(--c-primary);
+      color: var(--c-base);
+    }
+
+    /* Palco 16:9 centralizado */
+    .stage {
+      width: calc(100 * var(--u));
+      height: calc(56.25 * var(--u));
+      padding: calc(4.4 * var(--u)) calc(6.4 * var(--u)) calc(2.8 * var(--u));
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    /* Cabeçalhos dos slides */
+    .slide-header {
+      margin-bottom: calc(2.2 * var(--u));
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(0.7 * var(--u));
+      font-size: calc(0.95 * var(--u));
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--c-accent);
+      margin-bottom: calc(0.75 * var(--u));
+    }
+
+    .eyebrow::before {
+      content: '';
+      display: inline-block;
+      width: calc(1.6 * var(--u));
+      height: 2px;
+      background: var(--c-accent);
+    }
+
+    .slide-title {
+      font-size: calc(2.75 * var(--u));
+      font-weight: 700;
+      line-height: 1.14;
+      letter-spacing: -0.028em;
+      color: var(--c-primary);
+    }
+
+    .slide--dark .slide-title {
+      color: var(--c-base);
+    }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 0;
+    }
+
+    /* Rodapé padrão discreto */
+    .slide-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: calc(1.1 * var(--u));
+      border-top: 1px solid rgba(15, 50, 70, 0.10);
+      font-size: calc(0.88 * var(--u));
+      font-weight: 400;
+      color: var(--c-muted);
+      letter-spacing: 0.01em;
+      flex-shrink: 0;
+    }
+
+    .slide--dark .slide-footer {
+      border-top-color: rgba(255, 255, 255, 0.14);
+      color: rgba(255, 255, 255, 0.68);
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: calc(1.1 * var(--u));
+    }
+
+    .slide-counter {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--c-primary);
+    }
+
+    .slide--dark .slide-counter {
+      color: var(--c-base);
+    }
+
+    .nav-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(0.35 * var(--u));
+    }
+
+    .nav-btn {
+      appearance: none;
+      border: 1px solid rgba(15, 50, 70, 0.16);
+      background: transparent;
+      color: var(--c-primary);
+      width: calc(1.9 * var(--u));
+      height: calc(1.9 * var(--u));
+      border-radius: calc(0.35 * var(--u));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 160ms ease, border-color 160ms ease, opacity 160ms ease;
+    }
+
+    .nav-btn:hover {
+      background: var(--c-block);
+      border-color: var(--c-accent);
+    }
+
+    .slide--dark .nav-btn {
+      border-color: rgba(255, 255, 255, 0.22);
+      color: var(--c-base);
+    }
+
+    .slide--dark .nav-btn:hover {
+      background: rgba(108, 174, 245, 0.18);
+      border-color: var(--c-accent);
+    }
+
+    .nav-btn svg {
+      width: calc(0.95 * var(--u));
+      height: calc(0.95 * var(--u));
+    }
+
+    /* Marca em texto discreto */
+    .brand-wordmark {
+      font-size: calc(1.05 * var(--u));
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--c-accent);
+    }
+
+    /* Badges de severidade */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: calc(0.28 * var(--u)) calc(0.75 * var(--u));
+      border-radius: calc(0.28 * var(--u));
+      font-size: calc(0.76 * var(--u));
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--c-base);
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    .badge--alto { background: var(--b-alto); }
+    .badge--medio-alto { background: var(--b-medio-alto); }
+    .badge--medio { background: var(--b-medio); }
+    .badge--medio-baixo { background: var(--b-medio-baixo); }
+
+    /* =========================================================
+       SLIDE 1 — CAPA
+       ========================================================= */
+    .cover-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cover-main {
+      max-width: calc(74 * var(--u));
+    }
+
+    .cover-accent-line {
+      width: calc(4.5 * var(--u));
+      height: calc(0.32 * var(--u));
+      background: var(--c-accent);
+      margin-bottom: calc(2.2 * var(--u));
+    }
+
+    .cover-title {
+      font-size: calc(4.2 * var(--u));
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -0.032em;
+      color: var(--c-base);
+      margin-bottom: calc(1.5 * var(--u));
+    }
+
+    .cover-subtitle {
+      font-size: calc(1.55 * var(--u));
+      font-weight: 300;
+      line-height: 1.45;
+      color: rgba(255, 255, 255, 0.84);
+    }
+
+    .cover-meta {
+      margin-top: calc(3.2 * var(--u));
+      display: inline-block;
+      padding: calc(0.65 * var(--u)) calc(1.2 * var(--u));
+      border-left: 2px solid var(--c-accent);
+      background: rgba(255, 255, 255, 0.05);
+      font-size: calc(1.0 * var(--u));
+      color: rgba(255, 255, 255, 0.78);
+      letter-spacing: 0.01em;
+    }
+
+    /* =========================================================
+       SLIDE 2 — PANORAMA
+       ========================================================= */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: calc(1.8 * var(--u));
+      margin-bottom: calc(2.8 * var(--u));
+    }
+
+    .kpi-card {
+      background: var(--c-block);
+      border-top: 3px solid var(--c-accent);
+      border-radius: 0 0 calc(0.5 * var(--u)) calc(0.5 * var(--u));
+      padding: calc(2.2 * var(--u)) calc(1.9 * var(--u));
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: calc(21.5 * var(--u));
+    }
+
+    .kpi-card--primary {
+      border-top-color: var(--c-primary);
+    }
+
+    .kpi-label {
+      font-size: calc(0.95 * var(--u));
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--c-muted);
+      margin-bottom: calc(1.1 * var(--u));
+    }
+
+    .kpi-number {
+      font-size: calc(3.55 * var(--u));
+      font-weight: 800;
+      line-height: 1.02;
+      letter-spacing: -0.035em;
+      color: var(--c-primary);
+      font-variant-numeric: tabular-nums;
+      margin-bottom: calc(1.2 * var(--u));
+    }
+
+    .kpi-number--compact {
+      font-size: calc(2.85 * var(--u));
+    }
+
+    .kpi-detail {
+      font-size: calc(1.02 * var(--u));
+      line-height: 1.42;
+      color: var(--c-text);
+      font-weight: 400;
+    }
+
+    .summary-strip {
+      padding: calc(1.35 * var(--u)) calc(1.9 * var(--u));
+      border-left: 4px solid var(--c-primary);
+      background: var(--c-base);
+      font-size: calc(1.42 * var(--u));
+      font-weight: 500;
+      color: var(--c-primary);
+      letter-spacing: -0.01em;
+    }
+
+    /* =========================================================
+       SLIDE 3 — O QUE ESTÁ BOM
+       ========================================================= */
+    .positives-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      column-gap: calc(3.4 * var(--u));
+      row-gap: calc(1.35 * var(--u));
+    }
+
+    .positive-item {
+      display: flex;
+      align-items: flex-start;
+      gap: calc(1.15 * var(--u));
+      padding: calc(1.05 * var(--u)) calc(1.25 * var(--u));
+      border-radius: calc(0.45 * var(--u));
+      background: var(--c-block);
+    }
+
+    .positive-item--wide {
+      grid-column: 1 / -1;
+    }
+
+    .positive-icon {
+      width: calc(2.0 * var(--u));
+      height: calc(2.0 * var(--u));
+      border-radius: 50%;
+      background: var(--c-base);
+      color: var(--c-primary);
+      border: 1.5px solid var(--c-accent);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: calc(0.86 * var(--u));
+      font-weight: 700;
+      margin-top: calc(0.08 * var(--u));
+    }
+
+    .positive-text {
+      font-size: calc(1.14 * var(--u));
+      line-height: 1.4;
+      color: var(--c-text);
+    }
+
+    .positive-text strong {
+      color: var(--c-primary);
+      font-weight: 700;
+    }
+
+    /* =========================================================
+       SLIDE 4 — MAPA DE RISCOS
+       ========================================================= */
+    .risk-list {
+      display: flex;
+      flex-direction: column;
+      gap: calc(0.68 * var(--u));
+    }
+
+    .risk-row {
+      display: grid;
+      grid-template-columns: calc(4.2 * var(--u)) 1fr auto;
+      align-items: center;
+      padding: calc(0.92 * var(--u)) calc(1.4 * var(--u));
+      background: var(--c-block);
+      border-radius: calc(0.4 * var(--u));
+      border-left: 3px solid transparent;
+    }
+
+    .risk-row--alto {
+      border-left-color: var(--b-alto);
+    }
+
+    .risk-code {
+      font-size: calc(1.05 * var(--u));
+      font-weight: 800;
+      color: var(--c-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .risk-desc {
+      font-size: calc(1.16 * var(--u));
+      font-weight: 500;
+      color: var(--c-text);
+    }
+
+    /* =========================================================
+       SLIDE 5 — R1 EM DESTAQUE
+       ========================================================= */
+    .r1-lead {
+      font-size: calc(1.28 * var(--u));
+      line-height: 1.48;
+      color: var(--c-muted);
+      max-width: calc(74 * var(--u));
+      margin-bottom: calc(2.4 * var(--u));
+    }
+
+    .r1-compare {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: calc(2.2 * var(--u));
+      margin-bottom: calc(2.2 * var(--u));
+    }
+
+    .scenario-box {
+      padding: calc(2.1 * var(--u)) calc(2.3 * var(--u));
+      border-radius: calc(0.55 * var(--u));
+      background: var(--c-block);
+      border-top: 3px solid var(--b-alto);
+    }
+
+    .scenario-box--favorable {
+      border-top-color: var(--c-accent);
+    }
+
+    .scenario-tag {
+      font-size: calc(0.88 * var(--u));
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      margin-bottom: calc(0.8 * var(--u));
+    }
+
+    .scenario-value {
+      font-size: calc(3.3 * var(--u));
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--c-primary);
+      line-height: 1.05;
+      margin-bottom: calc(0.75 * var(--u));
+    }
+
+    .scenario-note {
+      font-size: calc(1.08 * var(--u));
+      line-height: 1.42;
+      color: var(--c-text);
+    }
+
+    .action-banner {
+      display: flex;
+      align-items: center;
+      gap: calc(1.1 * var(--u));
+      padding: calc(1.25 * var(--u)) calc(1.7 * var(--u));
+      background: var(--c-primary);
+      color: var(--c-base);
+      border-radius: calc(0.45 * var(--u));
+      font-size: calc(1.16 * var(--u));
+      line-height: 1.4;
+    }
+
+    .action-banner-label {
+      font-size: calc(0.85 * var(--u));
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--c-accent);
+      flex-shrink: 0;
+    }
+
+    /* =========================================================
+       SLIDE 6 — R2 E R3
+       ========================================================= */
+    .dual-risk-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: calc(2.4 * var(--u));
+    }
+
+    .risk-detail-card {
+      background: var(--c-block);
+      border-radius: calc(0.55 * var(--u));
+      padding: calc(2.2 * var(--u)) calc(2.3 * var(--u));
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: calc(31 * var(--u));
+      border-top: 3px solid var(--b-alto);
+    }
+
+    .risk-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: calc(1.3 * var(--u));
+    }
+
+    .risk-card-id {
+      font-size: calc(1.25 * var(--u));
+      font-weight: 800;
+      color: var(--c-primary);
+    }
+
+    .risk-big-metric {
+      font-size: calc(3.0 * var(--u));
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--c-primary);
+      line-height: 1.06;
+      margin-bottom: calc(0.95 * var(--u));
+    }
+
+    .risk-card-copy {
+      font-size: calc(1.1 * var(--u));
+      line-height: 1.48;
+      color: var(--c-text);
+      margin-bottom: calc(1.6 * var(--u));
+    }
+
+    .risk-card-copy strong {
+      color: var(--c-primary);
+      font-weight: 700;
+    }
+
+    .risk-card-action {
+      padding-top: calc(1.15 * var(--u));
+      border-top: 1px solid rgba(15, 50, 70, 0.12);
+      font-size: calc(1.05 * var(--u));
+      line-height: 1.42;
+      color: var(--c-primary);
+    }
+
+    .risk-card-action span {
+      display: block;
+      font-size: calc(0.8 * var(--u));
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--c-accent);
+      margin-bottom: calc(0.3 * var(--u));
+    }
+
+    /* =========================================================
+       SLIDE 7 — CONSTATAÇÕES
+       ========================================================= */
+    .findings-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: calc(2.0 * var(--u));
+    }
+
+    .finding-card {
+      background: var(--c-block);
+      border-radius: calc(0.55 * var(--u));
+      padding: calc(2.2 * var(--u)) calc(2.0 * var(--u));
+      border-top: 3px solid var(--c-accent);
+      display: flex;
+      flex-direction: column;
+      min-height: calc(29.5 * var(--u));
+    }
+
+    .finding-num {
+      font-size: calc(0.88 * var(--u));
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      margin-bottom: calc(1.0 * var(--u));
+    }
+
+    .finding-stat {
+      font-size: calc(2.7 * var(--u));
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--c-primary);
+      line-height: 1.08;
+      margin-bottom: calc(0.95 * var(--u));
+    }
+
+    .finding-heading {
+      font-size: calc(1.22 * var(--u));
+      font-weight: 700;
+      color: var(--c-primary);
+      line-height: 1.3;
+      margin-bottom: calc(0.85 * var(--u));
+    }
+
+    .finding-body {
+      font-size: calc(1.05 * var(--u));
+      line-height: 1.48;
+      color: var(--c-text);
+    }
+
+    .finding-body strong {
+      color: var(--c-primary);
+      font-weight: 600;
+    }
+
+    /* =========================================================
+       SLIDE 8 — OCUPAÇÃO E DIÁRIA MÉDIA (GRÁFICO)
+       ========================================================= */
+    .chart-layout {
+      display: grid;
+      grid-template-columns: 2.25fr 1fr;
+      gap: calc(2.4 * var(--u));
+      align-items: stretch;
+    }
+
+    .chart-panel {
+      background: var(--c-base);
+      border: 1px solid rgba(15, 50, 70, 0.12);
+      border-radius: calc(0.55 * var(--u));
+      padding: calc(1.5 * var(--u)) calc(1.8 * var(--u)) calc(1.1 * var(--u));
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .chart-legend {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: calc(0.6 * var(--u));
+      flex-wrap: wrap;
+      gap: calc(1.0 * var(--u));
+    }
+
+    .legend-items {
+      display: flex;
+      align-items: center;
+      gap: calc(1.8 * var(--u));
+      font-size: calc(0.95 * var(--u));
+      font-weight: 600;
+      color: var(--c-text);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(0.55 * var(--u));
+    }
+
+    .legend-swatch {
+      width: calc(1.5 * var(--u));
+      height: calc(0.28 * var(--u));
+      border-radius: 99px;
+    }
+
+    .legend-note {
+      font-size: calc(0.84 * var(--u));
+      color: var(--c-muted);
+    }
+
+    .occ-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      overflow: visible;
+    }
+
+    .chart-side {
+      display: flex;
+      flex-direction: column;
+      gap: calc(1.25 * var(--u));
+      justify-content: space-between;
+    }
+
+    .side-stat {
+      background: var(--c-block);
+      border-left: 3px solid var(--c-accent);
+      border-radius: 0 calc(0.45 * var(--u)) calc(0.45 * var(--u)) 0;
+      padding: calc(1.45 * var(--u)) calc(1.6 * var(--u));
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .side-stat--dark {
+      border-left-color: var(--c-primary);
+    }
+
+    .side-stat-label {
+      font-size: calc(0.86 * var(--u));
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--c-muted);
+      margin-bottom: calc(0.45 * var(--u));
+    }
+
+    .side-stat-value {
+      font-size: calc(2.35 * var(--u));
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--c-primary);
+      line-height: 1.08;
+    }
+
+    .side-stat-sub {
+      font-size: calc(0.96 * var(--u));
+      color: var(--c-muted);
+      margin-top: calc(0.35 * var(--u));
+    }
+
+    .chart-tooltip {
+      position: absolute;
+      top: calc(1.3 * var(--u));
+      right: calc(1.8 * var(--u));
+      background: var(--c-primary);
+      color: var(--c-base);
+      padding: calc(0.55 * var(--u)) calc(0.95 * var(--u));
+      border-radius: calc(0.35 * var(--u));
+      font-size: calc(0.84 * var(--u));
+      line-height: 1.4;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 140ms ease;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .chart-tooltip.is-visible {
+      opacity: 1;
+    }
+
+    /* =========================================================
+       SLIDE 9 — SUGESTÕES
+       ========================================================= */
+    .suggestions-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: calc(1.05 * var(--u)) calc(2.2 * var(--u));
+      margin-bottom: calc(1.8 * var(--u));
+    }
+
+    .suggestion-item {
+      display: flex;
+      align-items: center;
+      gap: calc(1.05 * var(--u));
+      padding: calc(1.0 * var(--u)) calc(1.3 * var(--u));
+      background: var(--c-block);
+      border-radius: calc(0.42 * var(--u));
+    }
+
+    .suggestion-tag {
+      font-size: calc(0.88 * var(--u));
+      font-weight: 800;
+      color: var(--c-base);
+      background: var(--c-primary);
+      padding: calc(0.28 * var(--u)) calc(0.6 * var(--u));
+      border-radius: calc(0.28 * var(--u));
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .suggestion-copy {
+      font-size: calc(1.1 * var(--u));
+      line-height: 1.35;
+      color: var(--c-text);
+      font-weight: 500;
+    }
+
+    .opportunity-bar {
+      background: var(--c-primary);
+      color: var(--c-base);
+      padding: calc(1.35 * var(--u)) calc(1.8 * var(--u));
+      border-radius: calc(0.48 * var(--u));
+      border-left: 4px solid var(--c-accent);
+      display: flex;
+      align-items: center;
+      gap: calc(1.2 * var(--u));
+      font-size: calc(1.15 * var(--u));
+    }
+
+    .opportunity-bar strong {
+      color: var(--c-accent);
+      text-transform: uppercase;
+      font-size: calc(0.86 * var(--u));
+      letter-spacing: 0.09em;
+      flex-shrink: 0;
+    }
+
+    /* =========================================================
+       SLIDE 10 — BENCHMARKS DE MERCADO
+       ========================================================= */
+    .bench-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(1.5 * var(--u));
+      flex-wrap: wrap;
+    }
+
+    .disclaimer-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(0.5 * var(--u));
+      padding: calc(0.45 * var(--u)) calc(1.0 * var(--u));
+      background: var(--c-block);
+      border: 1px solid var(--c-accent);
+      border-radius: 999px;
+      font-size: calc(0.88 * var(--u));
+      font-weight: 600;
+      color: var(--c-primary);
+    }
+
+    .bench-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: calc(1.5 * var(--u));
+    }
+
+    .bench-table th {
+      text-align: left;
+      font-size: calc(0.86 * var(--u));
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--c-muted);
+      padding: calc(0.95 * var(--u)) calc(1.2 * var(--u));
+      border-bottom: 2px solid var(--c-primary);
+    }
+
+    .bench-table td {
+      padding: calc(1.35 * var(--u)) calc(1.2 * var(--u));
+      border-bottom: 1px solid rgba(15, 50, 70, 0.10);
+      font-size: calc(1.12 * var(--u));
+      color: var(--c-text);
+      vertical-align: middle;
+    }
+
+    .bench-table tr:nth-child(even) td {
+      background: var(--c-block);
+    }
+
+    .bench-casa {
+      font-size: calc(1.42 * var(--u)) !important;
+      font-weight: 800;
+      color: var(--c-primary) !important;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .bench-market {
+      color: var(--c-muted) !important;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .bench-reading {
+      font-weight: 600;
+      color: var(--c-primary) !important;
+    }
+
+    .bench-sources {
+      font-size: calc(0.9 * var(--u));
+      color: var(--c-muted);
+    }
+
+    /* =========================================================
+       SLIDE 11 — CONCLUSÃO
+       ========================================================= */
+    .conclusion-wrap {
+      max-width: calc(78 * var(--u));
+      padding-left: calc(2.4 * var(--u));
+      border-left: 4px solid var(--c-accent);
+    }
+
+    .conclusion-quote {
+      font-size: calc(2.45 * var(--u));
+      font-weight: 600;
+      line-height: 1.36;
+      letter-spacing: -0.022em;
+      color: var(--c-primary);
+    }
+
+    .conclusion-quote strong {
+      font-weight: 800;
+      color: var(--c-primary);
+    }
+
+    /* =========================================================
+       SLIDE 12 — PRÓXIMO PASSO
+       ========================================================= */
+    .closing-wrap {
+      max-width: calc(72 * var(--u));
+    }
+
+    .closing-step {
+      font-size: calc(1.05 * var(--u));
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--c-accent);
+      margin-bottom: calc(1.2 * var(--u));
+    }
+
+    .closing-title {
+      font-size: calc(3.65 * var(--u));
+      font-weight: 700;
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      color: var(--c-base);
+      margin-bottom: calc(2.4 * var(--u));
+    }
+
+    .closing-contact {
+      padding-top: calc(1.6 * var(--u));
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+      display: inline-flex;
+      flex-direction: column;
+      gap: calc(0.35 * var(--u));
+      font-size: calc(1.08 * var(--u));
+      color: rgba(255, 255, 255, 0.78);
+    }
+
+    .closing-contact strong {
+      color: var(--c-base);
+      font-weight: 600;
+    }
+
+    /* Impressão / Exportação PDF nativa 16:9 */
+    @media print {
+      @page {
+        size: 16in 9in;
+        margin: 0;
+      }
+      html, body {
+        overflow: visible;
+        height: auto;
+      }
+      .progress-track, .nav-controls {
+        display: none !important;
+      }
+      .deck {
+        height: auto;
+        overflow: visible;
+      }
+      .slide {
+        position: relative;
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: none !important;
+        page-break-after: always;
+        break-after: page;
+        width: 16in;
+        height: 9in;
+        --u: 0.16in;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress-track" aria-hidden="true">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <main class="deck" id="deck" aria-live="polite">
+
+    <!-- =======================================================
+         SLIDE 01 — CAPA
+         ======================================================= -->
+    <section class="slide slide--dark is-active" data-slide="1" aria-label="Slide 1 de 12">
+      <div class="stage">
+        <div class="cover-top">
+          <span class="brand-wordmark">Virtus</span>
+        </div>
+
+        <div class="cover-main">
+          <div class="cover-accent-line"></div>
+          <h1 class="cover-title">Diagnóstico Financeiro — Casa Lençóis</h1>
+          <p class="cover-subtitle">Etapa 1 · Consultoria financeira Virtus Desenvolvimento</p>
+          <div class="cover-meta">Base de 21 meses (jan/2025–set/2026) · valores realizados</div>
+        </div>
+
+        <footer class="slide-footer">
+          <span>Virtus Desenvolvimento · Casa Lençóis</span>
+          <div class="footer-right">
+            <span class="slide-counter">01/12</span>
+            <div class="nav-controls">
+              <button class="nav-btn" data-prev aria-label="Slide anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button class="nav-btn" data-next aria-label="Próximo slide">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         SLIDE 02 — PANORAMA
+         ======================================================= -->
+    <section class="slide" data-slide="2" aria-label="Slide 2 de 12">
+      <div class="stage">
+        <header class="slide-header">
+          <div class="eyebrow">Visão Geral</div>
+          <h2 class="slide-title">Panorama</h2>
+        </header>
+
+        <div class="slide-body">
+          <div class="kpi-grid">
+            <article class="kpi-card">
+              <div class="kpi-label">Receita (jan–set)</div>
+              <div class="kpi-number">+87%</div>
+              <p class="kpi-detail">R$ 617 mil → R$ 1,15 milhão</p>
+            </article>
+
+            <article class="kpi-card">
+              <div class="kpi-label">Lucro operacional</div>
+              <div class="kpi-number">+113%</div>
+              <p class="kpi-detail">R$ 146 mil → R$ 311 mil (27% da receita)</p>
+            </article>
+
+            <article class="kpi-card kpi-card--primary">
+              <div class="kpi-label">Caixa final</div>
+              <div class="kpi-number kpi-number--compact">R$ 375,6 mil</div>
+              <p class="kpi-detail">Sem dívida com banco</p>
+            </article>
+
+            <article class="kpi-card kpi-card--primary">
+              <div class="kpi-label">Geração de caixa 2026</div>
+              <div class="kpi-number">−0,2%</div>
+              <p class="kpi-detail">Praticamente zero no acumulado do ano</p>
+            </article>
+          </div>
+
+          <div class="summary-strip">
+            Cresce e dá lucro na operação; o desafio é governança.
+          </div>
+        </div>
+
+        <footer class="slide-footer">
+          <span>Virtus Desenvolvimento · Casa Lençóis</span>
+          <div class="footer-right">
+            <span class="slide-counter">02/12</span>
+            <div class="nav-controls">
+              <button class="nav-btn" data-prev aria-label="Slide anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button class="nav-btn" data-next aria-label="Próximo slide">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         SLIDE 03 — O QUE ESTÁ BOM
+         ======================================================= -->
+    <section class="slide" data-slide="3" aria-label="Slide 3 de 12">
+      <div class="stage">
+        <header class="slide-header">
+          <div class="eyebrow">Pontos Fortes</div>
+          <h2 class="slide-title">O que está bom</h2>
+        </header>
+
+        <div class="slide-body">
+          <div class="positives-grid">
+            <div class="positive-item">
+              <span class="positive-icon">1</span>
+              <p class="positive-text"><strong>Crescimento forte e constante</strong> (+87%)</p>
+            </div>
+
+            <div class="positive-item">
+              <span class="positive-icon">2</span>
+              <p class="positive-text"><strong>Operação lucrativa, lucro crescendo</strong> (+113%, 27% da receita)</p>
+            </div>
+
+            <div class="positive-item">
+              <span class="positive-icon">3</span>
+              <p class="positive-text"><strong>Dinheiro entra antes da estadia</strong> — sem inadimplência, sem contas a receber em aberto</p>
+            </div>
+
+            <div class="positive-item">
+              <span class="positive-icon">4</span>
+              <p class="positive-text"><strong>Caixa saudável</strong>, dívida com sócios quitada</p>
+            </div>
+
+            <div class="positive-item">
+              <span class="positive-icon">5</span>
+              <p class="positive-text"><strong>Poder de precificação:</strong> diária média R$ 14,2 mil → R$ 18,8 mil (+32%); 2027 já a R$ 24 mil</p>
+            </div>
+
+            <div class="positive-item">
+              <span class="positive-icon">6</span>
+              <p class="positive-text"><strong>Receita diversificada:</strong> experiências R$ 219 mil a ~37% de margem</p>
+            </div>
+
+            <div class="positive-item positive-item--wide">
+              <span class="positive-icon">7</span>
+              <p class="positive-text"><strong>Energia sob controle</strong> (2,9% da receita, graças à usina solar)</p>
+            </div>
+          </div>
+        </div>
+
+        <footer class="slide-footer">
+          <span>Virtus Desenvolvimento · Casa Lençóis</span>
+          <div class="footer-right">
+            <span class="slide-counter">03/12</span>
+            <div class="nav-controls">
+              <button class="nav-btn" data-prev aria-label="Slide anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button class="nav-btn" data-next aria-label="Próximo slide">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         SLIDE 04 — MAPA DE RISCOS
+         ======================================================= -->
+    <section class="slide" data-slide="4" aria-label="Slide 4 de 12">
+      <div class="stage">
+        <header class="slide-header">
+          <div class="eyebrow">Priorização</div>
+          <h2 class="slide-title">Mapa de riscos</h2>
+        </header>
+
+        <div class="slide-body">
+          <div class="risk-list">
+            <div class="risk-row risk-row--alto">
+              <span class="risk-code">R1</span>
+              <span class="risk-desc">Operação na PF da sócia, sem planejamento tributário</span>
+              <span class="badge badge--alto">ALTO</span>
+            </div>
+
+            <div class="risk-row risk-row--alto">
+              <span class="risk-code">R2</span>
+              <span class="risk-desc">Retirada dos sócios fixa, sem acompanhar o resultado</span>
+              <span class="badge badge--alto">ALTO</span>
+            </div>
+
+            <div class="risk-row risk-row--alto">
+              <span class="risk-code">R3</span>
+              <span class="risk-desc">Baixa temporada pressiona o caixa</span>
+              <span class="badge badge--alto">ALTO</span>
+            </div>
+
+            <div class="risk-row">
+              <span class="risk-code">R4</span>
+              <span class="risk-desc">Marketing sem confirmação de retorno</span>
+              <span class="badge badge--medio-alto">MÉDIO-ALTO</span>
+            </div>
+
+            <div class="risk-row">
+              <span class="risk-code">R5</span>
+              <span class="risk-desc">Dependência de uma única vendedora</span>
+              <span class="badge badge--medio">MÉDIO</span>
+            </div>
+
+            <div class="risk-row">
+              <span class="risk-code">R6</span>
+              <span class="risk-desc">Controle patrimonial e de enxoval difícil à distância</span>
+              <span class="badge badge--medio">MÉDIO</span>
+            </div>
+
+            <div class="risk-row">
+              <span class="risk-code">R7</span>
+              <span class="risk-desc">Controle financeiro todo em planilhas</span>
+              <span class="badge badge--medio-baixo">MÉDIO-BAIXO</span>
+            </div>
+          </div>
+        </div>
+
+        <footer class="slide-footer">
+          <span>Virtus Desenvolvimento · Casa Lençóis</span>
+          <div class="footer-right">
+            <span class="slide-counter">04/12</span>
+            <div class="nav-controls">
+              <button class="nav-btn" data-prev aria-label="Slide anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button class="nav-btn" data-next aria-label="Próximo slide">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         SLIDE 05 — R1 EM DESTAQUE
+         ======================================================= -->
+    <section class="slide" data-slide="5" aria-label="Slide 5 de 12">
+      <div class="stage">
+        <header class="slide-header">
+          <div class="eyebrow">
+            <span>Risco R1</span>
+            <span class="badge badge--alto">ALTO</span>
+          </div>
+          <h2 class="slide-title">Operação na pessoa física da sócia, sem planejamento tributário</h2>
+        </header>
+
+        <div class="slide-body">
+          <p class="r1-lead">
+            Tudo transita na conta PF, sem empresa nem enquadramento — gerando risco de autuação, multas e mistura de patrimônio.
+          </p>
+
+          <div class="r1-compare">
+            <div class="scenario-box">
+              <div class="scenario-tag">Pior caso · 27% sobre a receita</div>
+              <div class="scenario-value">~R$ 311 mil</div>
+              <p class="scenario-note">Imposto estimado que consome quase todo o lucro operacional do ano.</p>
+            </div>
+
+            <div class="scenario-box scenario-box--favorable">
+              <div class="scenario-tag">Simples Nacional · ~10%</div>
+              <div class="scenario-value">~R$ 195 mil</div>
+              <p class="scenario-note">Resultado estimado que sobraria após enquadramento legal (elisão fiscal).</p>
+            </div>
+          </div>
+
+          <div class="action-banner">
+            <span class="action-banner-label">Ação</span>
+            <span>Reunião com o contador + avaliar Simples Nacional (elisão fiscal).</span>
+          </div>
+        </div>
+
+        <footer class="slide-footer">
+          <span>Virtus Desenvolvimento · Casa Lençóis</span>
+          <div class="footer-right">
+            <span class="slide-counter">05/12</span>
+            <div class="nav-controls">
+              <button class="nav-btn" data-prev aria-label="Slide anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button class="nav-btn" data-next aria-label="Próximo slide">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         SLIDE 06 — R2 E R3
+         ======================================================= -->
+    <section class="slide" data-slide="6" aria-label="Slide 6 de 12">
+      <div class="stage">
+        <header class="slide-header">
+          <div class="eyebrow">Riscos Críticos de Caixa</div>
+          <h2 class="slide-title">Retirada dos sócios e pressão da baixa temporada</h2>
+        </header>
+
+        <div class="slide-body">
+          <div class="dual-risk-grid">
+            <article class="risk-detail-card">
+              <div>
+                <div class="risk-card-top">
+                  <span class="risk-card-id">R2 · Retirada dos sócios</span>
+                  <span class="badge badge--alto">ALTO</span>
+                </div>
+                <div class="risk-big-metric">~R$ 28 mil/mês</div>
+                <p class="risk-card-copy">
+                  Retirada fixa rateada entre sócios, sem acompanhar o resultado do mês. Em 2026, <strong>R$ 112 mil</strong> de distribuição + <strong>R$ 108 mil</strong> de amortização zeraram a geração de caixa.
+                </p>
+              </div>
+              <div class="risk-card-action">
+                <span>Ação recomendada</span>
+                Pró-labore fixo + distribuição variável atrelada à geração de caixa.
+              </div>
+            </article>
+
+            <article class="risk-detail-card">
+              <div>
+                <div class="risk-card-top">
+                  <span class="risk-card-id">R3 · Baixa temporada</span>
+                  <span class="badge badge--alto">ALTO</span>
+                </div>
+                <div class="risk-big-metric">−R$ 93 mil</div>
+                <p class="risk-card-copy">
+                  Resultado operacional em <strong>ago/26</strong>. O pagamento adiantado das reservas faz a baixa temporada chegar com custo cheio e pouca entrada de caixa.
+                </p>
+              </div>
+              <div class="risk-card-action">
+                <span>Ação recomendada</span>
+                Controle de contas a pagar × receber + reserva de caixa para a baixa.
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <footer class="slide-footer">
+          <span>Virtus Desenvolvimento · Casa Lençóis</span>
+          <div class="footer-right">
+            <span class="slide-counter">06/12</span>
+            <div class="nav-controls">
+              <button class="nav-btn" data-prev aria-label="Slide anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button class="nav-btn" data-next aria-label="Próximo slide">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         SLIDE 07 — CONSTATAÇÕES
+         ======================================================= -->
+    <section class="slide" data-slide="7" aria-label="Slide 7 de 12">
+      <div class="stage">
+        <header class="slide-header">
+          <div class="eyebrow">Fatos Observados</div>
+          <h2 class="slide-title">Constatações</h2>
+        </header>
+
+        <div class="slide-body">
+          <div class="findings-grid">
+            <article class="finding-card">
+              <span class="finding-num">Constatação 01</span>
+              <div class="finding-stat">73% → 58%</div>
+              <h3 class="finding-heading">Margem de contribuição caiu</h3>
+              <p class="finding-body">
+                Causa principal é a comissão de venda (<strong>2,5% → 14,1%</strong> da receita). Não é descontrole de custo.
+              </p>
+            </article>
+
+            <article class="finding-card">
+              <span class="finding-num">Constatação 02</span>
+              <div class="finding-stat">−30%</div>
+              <h3 class="finding-heading">Ocupação que não gera receita</h3>
+              <p class="finding-body">
+                <strong>~30%</strong> das noites foram cortesia; a diária efetiva cai de <strong>R$ 18,8 mil</strong> para <strong>R$ 13,2 mil</strong>. Em set/26: 40% ocupada, 0% paga.
+              </p>
+            </article>
+
+            <article class="finding-card">
+              <span class="finding-num">Constatação 03</span>
+              <div class="finding-stat">7,6%</div>
+              <h3 class="finding-heading">Manutenção acima do mercado</h3>
+              <p class="finding-body">
+                Acima da referência de <strong>3–4,7%</strong>, porém grande parte é móvel planejado e reforma (investimento), não manutenção recorrente.
+              </p>
+            </article>
+          </div>
+        </div>
+
+        <footer class="slide-footer">
+          <span>Virtus Desenvolvimento · Casa Lençóis</span>
+          <div class="footer-right">
+            <span class="slide-counter">07/12</span>
+            <div class="nav-controls">
+              <button class="nav-btn" data-prev aria-label="Slide anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button class="nav-btn" data-next aria-label="Próximo slide">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         SLIDE 08 — OCUPAÇÃO E DIÁRIA MÉDIA
+         ======================================================= -->
+    <section class="slide" data-slide="8" aria-label="Slide 8 de 12">
+      <div class="stage">
+        <header class="slide-header">
+          <div class="eyebrow">Indicadores Comerciais · 2026</div>
+          <h2 class="slide-title">Ocupação e diária média</h2>
+        </header>
+
+        <div class="slide-body">
+          <div class="chart-layout">
+            <div class="chart-panel">
+              <div class="chart-legend">
+                <div class="legend-items">
+                  <span class="legend-item">
+                    <span class="legend-swatch" style="background: #6CAEF5;"></span>
+                    Ocupação geral (%)
+                  </span>
+                  <span class="legend-item">
+                    <span class="legend-swatch" style="background: #0F3246;"></span>
+                    Ocupação paga (%)
+                  </span>
+                </div>
+                <span class="legend-note">Área sombreada = noites de cortesia</span>
+              </div>
+
+              <div class="chart-tooltip" id="chartTooltip"></div>
+
+              <!-- SVG exato: eixo Y 0%–70% (y = 330 - 4 * pct), eixo X jan–out (x = 55 + 75 * i) -->
+              <svg class="occ-svg" viewBox="0 0 770 370" role="img" aria-label="Gráfico de linha de ocupação geral versus ocupação paga de janeiro a outubro">
+                <!-- Linhas de grade horizontais -->
+                <g stroke="#0F3246" stroke-opacity="0.10" stroke-width="1">
+                  <line x1="48" y1="330" x2="742" y2="330" stroke-opacity="0.22" />
+                  <line x1="48" y1="250" x2="742" y2="250" />
+                  <line x1="48" y1="170" x2="742" y2="170" />
+                  <line x1="48" y1="90"  x2="742" y2="90" />
+                </g>
+
+                <!-- Rótulos eixo Y -->
+                <g fill="#5A6B7B" font-size="12" font-family="Inter, system-ui, sans-serif" text-anchor="end">
+                  <text x="38" y="334">0%</text>
+                  <text x="38" y="254">20%</text>
+                  <text x="38" y="174">40%</text>
+                  <text x="38" y="94">60%</text>
+                </g>
+
+                <!-- Área entre Ocupação Geral e Ocupação Paga (evidencia cortesias) -->
+                <polygon
+                  fill="#EEF4FB"
+                  points="55,265.6 130,330 205,265.6 280,263.2 355,252.4 430,156.8 505,84.8 580,149.2 655,170.0 730,304.0 730,304.0 655,330 580,226.8 505,84.8 430,156.8 355,252.4 280,263.2 205,304.0 130,330 55,304.0"
+                />
+
+                <!-- Série 1: Ocupação Geral (#6CAEF5) -->
+                <polyline
+                  fill="none"
+                  stroke="#6CAEF5"
+                  stroke-width="5.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  points="55,265.6 130,330 205,265.6 280,263.2 355,252.4 430,156.8 505,84.8 580,149.2 655,170.0 730,304.0"
+                />
+
+                <!-- Série 2: Ocupação Paga (#0F3246) -->
+                <polyline
+                  fill="none"
+                  stroke="#0F3246"
+                  stroke-width="2.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  points="55,304.0 130,330 205,304.0 280,263.2 355,252.4 430,156.8 505,84.8 580,226.8 655,330 730,304.0"
+                />
+
+                <!-- Pontos Série Geral (#6CAEF5) -->
+                <g fill="#FFFFFF" stroke="#6CAEF5" stroke-width="3">
+                  <circle cx="55"  cy="265.6" r="5.5" />
+                  <circle cx="130" cy="330"   r="5.5" />
+                  <circle cx="205" cy="265.6" r="5.5" />
+                  <circle cx="280" cy="263.2" r="5.5" />
+                  <circle cx="355" cy="252.4" r="5.5" />
+                  <circle cx="430" cy="156.8" r="5.5" />
+                  <circle cx="505" cy="84.8"  r="5.5" />
+                  <circle cx="580" cy="149.2" r="5.5" />
+                  <circle cx="655" cy="170.0" r="5.5" />
+                  <circle cx="730" cy="304.0" r="5.5" />
+                </g>
+
+                <!-- Pontos Série Paga (#0F3246) -->
+                <g fill="#0F3246">
+                  <circle cx="55"  cy="304.0" r="3.6" />
+                  <circle cx="130" cy="330"   r="3.6" />
+                  <circle cx="205" cy="304.0" r="3.6" />
+                  <circle cx="280" cy="263.2" r="3.2" />
+                  <circle cx="355" cy="252.4" r="3.2" />
+                  <circle cx="430" cy="156.8" r="3.2" />
+                  <circle cx="505" cy="84.8"  r="3.2" />
+                  <circle cx="580" cy="226.8" r="3.6" />
+                  <circle cx="655" cy="330"   r="3.6" />
+                  <circle cx="730" cy="304.0" r="3.2" />
+                </g>
+
+                <!-- Rótulos diretos de valores -->
+                <g font-size="11.5" font-weight="700" font-family="Inter, system-ui, sans-serif" text-anchor="middle">
+                  <!-- jan -->
+                  <text x="55" y="250" fill="#6CAEF5">16,1%</text>
+                  <text x="55" y="323" fill="#0F3246">6,5%</text>
+                  <!-- fev -->
+                  <text x="130" y="315" fill="#5A6B7B">0%</text>
+                  <!-- mar -->
+                  <text x="205" y="250" fill="#6CAEF5">16,1%</text>
+                  <text x="205" y="323" fill="#0F3246">6,5%</text>
+                  <!-- abr -->
+                  <text x="280" y="248" fill="#0F3246">16,7%</text>
+                  <!-- mai -->
+                  <text x="355" y="237" fill="#0F3246">19,4%</text>
+                  <!-- jun -->
+                  <text x="430" y="141" fill="#0F3246">43,3%</text>
+                  <!-- jul -->
+                  <text x="505" y="69" fill="#0F3246">61,3%</text>
+                  <!-- ago -->
+                  <text x="580" y="134" fill="#6CAEF5">45,2%</text>
+                  <text x="580" y="245" fill="#0F3246">25,8%</text>
+                  <!-- set -->
+                  <text x="655" y="155" fill="#6CAEF5">40,0%</text>
+                  <text x="655" y="318" fill="#0F3246">0%</text>
+                  <!-- out -->
+                  <text x="730" y="289" fill="#0F3246">6,5%</text>
+                </g>
+
+                <!-- Rótulos eixo X (meses) -->
+                <g fill="#1F2D3A" font-size="12.5" font-weight="600" font-family="Inter, system-ui, sans-serif" text-anchor="middle">
+                  <text x="55"  y="356">jan</text>
+                  <text x="130" y="356">fev</text>
+                  <text x="205" y="356">mar</text>
+                  <text x="280" y="356">abr</text>
+                  <text x="355" y="356">mai</text>
+                  <text x="430" y="356">jun</text>
+                  <text x="505" y="356">jul</text>
+                  <text x="580" y="356">ago</text>
+                  <text x="655" y="356">set</text>
+                  <text x="730" y="356">out</text>
+                </g>
+
+                <!-- Áreas interativas para hover em cada mês -->
+                <g class="occ-hitboxes" fill="transparent" style="cursor: crosshair;">
+                  <rect x="20"  y="40" width="70" height="320" data-m="jan" data-g="16,1%" data-p="6,5%" />
+                  <rect x="95"  y="40" width="70" height="320" data-m="fev" data-g="0%"    data-p="0%" />
+                  <rect x="170" y="40" width="70" height="320" data-m="mar" data-g="16,1%" data-p="6,5%" />
+                  <rect x="245" y="40" width="70" height="320" data-m="abr" data-g="16,7%" data-p="16,7%" />
+                  <rect x="320" y="40" width="70" height="320" data-m="mai" data-g="19,4%" data-p="19,4%" />
+                  <rect x="395" y="40" width="70" height="320" data-m="jun" data-g="43,3%" data-p="43,3%" />
+                  <rect x="470" y="40" width="70" height="320" data-m="jul" data-g="61,3%" data-p="61,3%" />
+                  <rect x="545" y="40" width="70" height="320" data-m="ago" data-g="45,2%" data-p="25,8%" />
+                  <rect x="620" y="40" width="70" height="320" data-m="set" data-g="40,0%" data-p="0%" />
+                  <rect x="695" y="40" width="70" height="320" data-m="out" data-g="6,5%"  data-p="6,5%" />
+                </g>
+              </svg>
+            </div>
+
+            <aside class="chart-side">
+              <div class="side-stat">
+                <span class="side-stat-label">ADR pagante</span>
+                <span class="side-stat-value">R$ 18,8 mil</span>
+                <span class="side-stat-sub">Diária média das noites pagas</span>
+              </div>
+
+              <div class="side-stat side-stat--dark">
+                <span class="side-stat-label">ADR efetiva</span>
+                <span class="side-stat-value">R$ 13,2 mil</span>
+                <span class="side-stat-sub">−30% pela diluição com cortesias</span>
+              </div>
+
+              <div class="side-stat">
+                <span class="side-stat-label">Alta temporada</span>
+                <span class="side-stat-value">27,9%</span>
+                <span class="side-stat-sub">Ocupação paga na janela de alta</span>
+              </div>
+            </aside>
+          </div>
+        </div>
+
+        <footer class="slide-footer">
+          <span>Virtus Desenvolvimento · Casa Lençóis</span>
+          <div class="footer-right">
+            <span class="slide-counter">08/12</span>
+            <div class="nav-controls">
+              <button class="nav-btn" data-prev aria-label="Slide anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button class="nav-btn" data-next aria-label="Próximo slide">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         SLIDE 09 — SUGESTÕES
+         ======================================================= -->
+    <section class="slide" data-slide="9" aria-label="Slide 9 de 12">
+      <div class="stage">
+        <header class="slide-header">
+          <div class="eyebrow">Plano de Ação</div>
+          <h2 class="slide-title">Sugestões ligadas aos riscos</h2>
+        </header>
+
+        <div class="slide-body">
+          <div class="suggestions-grid">
+            <div class="suggestion-item">
+              <span class="suggestion-tag">R1</span>
+              <span class="suggestion-copy">Formalizar empresa (Simples Nacional)</span>
+            </div>
+
+            <div class="suggestion-item">
+              <span class="suggestion-tag">R2</span>
+              <span class="suggestion-copy">Política de retirada atrelada ao caixa</span>
+            </div>
+
+            <div class="suggestion-item">
+              <span class="suggestion-tag">R3</span>
+              <span class="suggestion-copy">Projeção de caixa + reserva para a baixa</span>
+            </div>
+
+            <div class="suggestion-item">
+              <span class="suggestion-tag">R4</span>
+              <span class="suggestion-copy">Medir retorno do marketing e revisar comissão</span>
+            </div>
+
+            <div class="suggestion-item">
+              <span class="suggestion-tag">R5</span>
+              <span class="suggestion-copy">Segunda vendedora + testar OTAs (ex.: Airbnb)</span>
+            </div>
+
+            <div class="suggestion-item">
+              <span class="suggestion-tag">R6</span>
+              <span class="suggestion-copy">Controle de ativos/enxoval com a equipe local</span>
+            </div>
+
+            <div class="suggestion-item" style="grid-column: 1 / -1;">
+              <span class="suggestion-tag">R7</span>
+              <span class="suggestion-copy">Adotar sistema de gestão financeira (ContaAzul / Nibo / Omie)</span>
+            </div>
+          </div>
+
+          <div class="opportunity-bar">
+            <strong>+ Oportunidade comercial</strong>
+            <span>Preencher vãos de 2–3 noites na própria alta temporada antes de mexer em preço.</span>
+          </div>
+        </div>
+
+        <footer class="slide-footer">
+          <span>Virtus Desenvolvimento · Casa Lençóis</span>
+          <div class="footer-right">
+            <span class="slide-counter">09/12</span>
+            <div class="nav-controls">
+              <button class="nav-btn" data-prev aria-label="Slide anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button class="nav-btn" data-next aria-label="Próximo slide">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         SLIDE 10 — BENCHMARKS DE MERCADO
+         ======================================================= -->
+    <section class="slide" data-slide="10" aria-label="Slide 10 de 12">
+      <div class="stage">
+        <header class="slide-header">
+          <div class="eyebrow">Comparativo Setorial</div>
+          <div class="bench-header-row">
+            <h2 class="slide-title">Benchmarks de mercado</h2>
+            <span class="disclaimer-pill">Referência de hotelaria — estimativa a validar</span>
+          </div>
+        </header>
+
+        <div class="slide-body">
+          <table class="bench-table">
+            <thead>
+              <tr>
+                <th>Indicador</th>
+                <th>Casa Lençóis</th>
+                <th>Mercado (estimativa)</th>
+                <th>Leitura</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Energia + água</td>
+                <td class="bench-casa">2,9%</td>
+                <td class="bench-market">4,3–5,3%</td>
+                <td class="bench-reading">Eficiente (solar)</td>
+              </tr>
+              <tr>
+                <td>Manutenção</td>
+                <td class="bench-casa">7,6%</td>
+                <td class="bench-market">3–4,7%</td>
+                <td class="bench-reading">Acima, mas inclui investimentos</td>
+              </tr>
+              <tr>
+                <td>Lucro operacional</td>
+                <td class="bench-casa">27%</td>
+                <td class="bench-market">28,5% hotéis / 30% resorts</td>
+                <td class="bench-reading">Em linha</td>
+              </tr>
+              <tr>
+                <td>Ocupação (alta, paga)</td>
+                <td class="bench-casa">27,9%</td>
+                <td class="bench-market">~60%</td>
+                <td class="bench-reading">Não comparável (imóvel inteiro ≠ quartos)</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p class="bench-sources">
+            Fontes — FOHB Hotelaria em Números 2024; CBRE; HotStats/USALI.
+          </p>
+        </div>
+
+        <footer class="slide-footer">
+          <span>Virtus Desenvolvimento · Casa Lençóis</span>
+          <div class="footer-right">
+            <span class="slide-counter">10/12</span>
+            <div class="nav-controls">
+              <button class="nav-btn" data-prev aria-label="Slide anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button class="nav-btn" data-next aria-label="Próximo slide">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         SLIDE 11 — CONCLUSÃO
+         ======================================================= -->
+    <section class="slide" data-slide="11" aria-label="Slide 11 de 12">
+      <div class="stage">
+        <header class="slide-header">
+          <div class="eyebrow">Síntese</div>
+          <h2 class="slide-title">Conclusão</h2>
+        </header>
+
+        <div class="slide-body">
+          <div class="conclusion-wrap">
+            <p class="conclusion-quote">
+              “A Casa Lençóis <strong>cresce e dá lucro na operação</strong>. O que mais pede atenção é a <strong>organização e a governança</strong>: situação tributária, política de retirada dos sócios, reserva para a baixa e controles que sobrevivam à consultoria.”
+            </p>
+          </div>
+        </div>
+
+        <footer class="slide-footer">
+          <span>Virtus Desenvolvimento · Casa Lençóis</span>
+          <div class="footer-right">
+            <span class="slide-counter">11/12</span>
+            <div class="nav-controls">
+              <button class="nav-btn" data-prev aria-label="Slide anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button class="nav-btn" data-next aria-label="Próximo slide">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         SLIDE 12 — PRÓXIMO PASSO
+         ======================================================= -->
+    <section class="slide slide--dark" data-slide="12" aria-label="Slide 12 de 12">
+      <div class="stage">
+        <div class="cover-top">
+          <span class="brand-wordmark">Virtus</span>
+        </div>
+
+        <div class="closing-wrap">
+          <div class="closing-step">Próximo passo</div>
+          <h2 class="closing-title">Etapa 2 — Estruturação dos processos financeiros</h2>
+          <div class="closing-contact">
+            <strong>Virtus Desenvolvimento</strong>
+            <span>Consultoria financeira · Projeto Casa Lençóis</span>
+          </div>
+        </div>
+
+        <footer class="slide-footer">
+          <span>Virtus Desenvolvimento · Casa Lençóis</span>
+          <div class="footer-right">
+            <span class="slide-counter">12/12</span>
+            <div class="nav-controls">
+              <button class="nav-btn" data-prev aria-label="Slide anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button class="nav-btn" data-next aria-label="Próximo slide">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    (function () {
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const total = slides.length;
+      const progressFill = document.getElementById('progressFill');
+      let current = 0;
+
+      function goTo(index) {
+        if (index < 0 || index >= total || index === current) return;
+        current = index;
+        render();
+      }
+
+      function render() {
+        slides.forEach((slide, i) => {
+          slide.classList.toggle('is-active', i === current);
+          slide.classList.toggle('is-prev', i < current);
+        });
+        const pct = ((current + 1) / total) * 100;
+        progressFill.style.width = pct + '%';
+        document.body.style.backgroundColor = slides[current].classList.contains('slide--dark')
+          ? '#0F3246'
+          : '#FFFFFF';
+      }
+
+      // Botões discretos no rodapé
+      document.querySelectorAll('[data-prev]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          goTo(current - 1);
+        });
+      });
+
+      document.querySelectorAll('[data-next]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          goTo(current + 1);
+        });
+      });
+
+      // Navegação por clique na tela (metade esquerda volta, metade direita avança)
+      document.getElementById('deck').addEventListener('click', (e) => {
+        // Não navegar se o usuário estiver selecionando texto ou clicando em botão/link
+        const selection = window.getSelection();
+        if (selection && selection.toString().length > 0) return;
+        if (e.target.closest('button, a')) return;
+
+        const ratio = e.clientX / window.innerWidth;
+        if (ratio < 0.28) {
+          goTo(current - 1);
+        } else {
+          goTo(current + 1);
+        }
+      });
+
+      // Navegação por teclado (setas ←/→ e teclas auxiliares padrão de apresentação)
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+          e.preventDefault();
+          goTo(current + 1);
+        } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+          e.preventDefault();
+          goTo(current - 1);
+        } else if (e.key === 'Home') {
+          e.preventDefault();
+          goTo(0);
+        } else if (e.key === 'End') {
+          e.preventDefault();
+          goTo(total - 1);
+        }
+      });
+
+      // Tooltip interativo do gráfico no Slide 8
+      const tooltip = document.getElementById('chartTooltip');
+      document.querySelectorAll('.occ-hitboxes rect').forEach((rect) => {
+        rect.addEventListener('mouseenter', () => {
+          const m = rect.getAttribute('data-m');
+          const g = rect.getAttribute('data-g');
+          const p = rect.getAttribute('data-p');
+          tooltip.innerHTML = '<strong>' + m.toUpperCase() + '</strong> · Geral: ' + g + ' · Paga: ' + p;
+          tooltip.classList.add('is-visible');
+        });
+        rect.addEventListener('mouseleave', () => {
+          tooltip.classList.remove('is-visible');
+        });
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>
